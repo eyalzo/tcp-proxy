@@ -1,10 +1,29 @@
-use clap::{App, Arg};
+use clap::{Parser};
 use tokio::io;
+use std::net::SocketAddr;
 use tokio::net::{TcpListener, TcpStream};
+use std::os::unix::io::AsRawFd;
+use nix::sys::socket::setsockopt;
+use nix::sys::socket::sockopt::IpTransparent;
 use tokio::select;
 
-async fn proxy(client: &str, server: &str) -> io::Result<()> {
+#[derive(Parser)]
+#[clap(author, version, about)]
+struct Cli {
+    /// The full IP:port address of the traffic we listen to
+    #[clap(short, long, value_parser)]
+    client: SocketAddr,
+    /// The full IP:port address of the destination where we send the traffic to
+    #[clap(short, long, value_parser, required=true)]
+    server: SocketAddr,
+}
+
+async fn proxy(client: SocketAddr, server: SocketAddr) -> io::Result<()> {
     let listener = TcpListener::bind(client).await?;
+    // Linux only- get raw socket for setsockopt()
+    let raw_socket = listener.as_raw_fd();
+    let _res = setsockopt(raw_socket, IpTransparent, &true);
+
     loop {
         let (client, _) = listener.accept().await?;
         let server = TcpStream::connect(server).await?;
@@ -28,32 +47,7 @@ async fn proxy(client: &str, server: &str) -> io::Result<()> {
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    let matches = App::new("tcp-proxy")
-        .version("1.0")
-        .author("Eyal Zohar <eyalzo@gmail.com>")
-        .about("TCP Proxy for Deduplication")
-        .arg(
-            Arg::with_name("client")
-                .short("c")
-                .long("client")
-                .value_name("ADDRESS")
-                .help("The full IP:port address of the traffic we listen to")
-                .takes_value(true)
-                .required(true),
-        )
-        .arg(
-            Arg::with_name("server")
-                .short("s")
-                .long("server")
-                .value_name("ADDRESS")
-                .help("The full IP:port address of the destination where we send the traffic to")
-                .takes_value(true)
-                .required(true),
-        )
-        .get_matches();
+    let args = Cli::parse();
 
-    let client = matches.value_of("client").unwrap();
-    let server = matches.value_of("server").unwrap();
-
-    proxy(client, server).await
+    proxy(args.client, args.server).await
 }
