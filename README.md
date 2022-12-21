@@ -3,6 +3,31 @@
 This app is a proxy that copies everything from one socket to another.
 It accepts two input parameters: where to listen, and where to copy to on the other side.
 
+# Simple run
+
+Pushing bytes with `dd` and `nc`.
+
+First, run the proxy:
+```bash
+cargo run -- --client 127.0.0.1:6000 --server 127.0.0.1:7000
+```
+
+Now the server:
+```bash
+nc -kvl 0.0.0.0 7000 > /dev/null
+```
+
+And finally the client, through the proxy:
+```bash
+dd if=/dev/zero bs=10240000 count=10 | nc -v 127.0.0.1 6000
+```
+
+The client can be stopped with ^c and run over and over again.
+To compare the performance with and without the proxy, it is recommended to also connect the client directly to the server:
+```bash
+dd if=/dev/zero bs=10240000 count=10 | nc -v 127.0.0.1 7000
+```
+
 # Network setup
 
 ## Gateway
