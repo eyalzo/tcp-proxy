@@ -1,3 +1,5 @@
+See also [NFC README](nfc/README.md)
+
 # Overview
 
 This app is a proxy that copies everything from one socket to another.
@@ -89,3 +91,7 @@ For example, to listen on all IPS forever:
 ```bash
 nc -kvl 0.0.0.0 6000 > /dev/null
 ```
+
+# Transparent proxy
+
+This operation mode requires Linux with CAP_NET_ADMIN privileges.
