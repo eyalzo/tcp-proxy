@@ -14,16 +14,21 @@ struct Cli {
     #[clap(short, long, value_parser)]
     client: SocketAddr,
     /// The full IP:port address of the destination where we send the traffic to
-    #[clap(short, long, value_parser, required=true)]
+    #[clap(short, long, value_parser, required = true)]
     server: SocketAddr,
 }
 
 async fn proxy(client_addr: SocketAddr, server_addr: SocketAddr) -> io::Result<()> {
     let listener = TcpListener::bind(client_addr).await?;
     println!("Bind successfully on {}", listener.local_addr().unwrap());
+
     // Linux only- get raw socket for setsockopt()
     let raw_socket = listener.as_raw_fd();
-    let _res = setsockopt(raw_socket, IpTransparent, &true);
+    let res = setsockopt(raw_socket, IpTransparent, &true);
+    match res {
+        Ok(_) => { println!("Succeeded to setsockopt(IpTransparent).") }
+        Err(_) => { println!("Failed to setsockopt(IpTransparent). Please run as root (or CAP_NET_ADMIN privileges) on Linux.") }
+    }
 
     loop {
         println!("Waiting for a client to connect {} ...", listener.local_addr().unwrap());
