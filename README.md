@@ -97,6 +97,9 @@ nc -kvl 0.0.0.0 6000 > /dev/null
 To set a TPROXY rule in Ubuntu, you will need to use the iptables utility. 
 TPROXY is a feature that allows you to redirect traffic to a local proxy without the need for NAT.
 
+Note: The TPROXY is allowed in PREROUTING only, meaning that only forwarded traffic can be captured and not INPUT nor OUTPUT (as DIVERT does).
+To simulate forwarding, one can use VirtualBox with "Bridged Adapter" (the default NAT does not suffice).
+
 Here's an example of how to set a TPROXY rule that redirects all HTTP traffic from a specific source IP address to a local HTTP proxy listening on port 8080:
 
 ```bash
