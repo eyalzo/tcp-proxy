@@ -80,3 +80,35 @@ c2s done
 Waiting for a client to connect 127.0.0.1:6000 ...
 Copied server -> client: 1584 bytes
 ```
+
+# Hijacking to the proxy
+
+We start by doing everything locally, so the hijacking is performed in OUTPUT because localhost does not go through PREROUTING.
+
+```bash
+# Cleanup previous NAT rules (be careful)
+sudo iptables -t nat -F
+# Add rule to capture traffic intended for the imaginary port 7000 where nothing actually runs
+sudo iptables -t nat -A OUTPUT -o lo -d 127.0.0.1 -p tcp --dport 7000 -j DNAT --to-destination 127.0.0.1:6000
+# To watch counters live:
+sudo watch -dc -n 1 iptables -t nat -nvL
+```
+
+This time, connect the NFC client to port 7000:
+
+```text
+SetCnxType direct
+Connect 127.0.0.1 7000
+Put /tmp/test_random_10m /tmp/test_random_10m_out_01
+Quit
+```
+
+Wireshark can capture this session, but it will look a bit weired. 
+See below the connection phase, where port 6000 is seen on one way, but port 7000 answers instead.
+
+```text
+No. Time         Info
+1   0.000000000  39360 → 6000 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=186089247 TSecr=0 WS=128
+2   0.000014465  7000 → 39360 [SYN, ACK] Seq=0 Ack=1 Win=65483 Len=0 MSS=65495 SACK_PERM=1 TSval=186089247 TSecr=186089247 WS=128
+3   0.000026275  39360 → 6000 [ACK] Seq=1 Ack=1 Win=65536 Len=0 TSval=186089247 TSecr=186089247
+```
