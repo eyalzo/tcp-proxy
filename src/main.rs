@@ -3,8 +3,8 @@ use tokio::io;
 use std::net::SocketAddr;
 use tokio::net::{TcpListener, TcpStream};
 use std::os::unix::io::AsRawFd;
-use nix::sys::socket::setsockopt;
-use nix::sys::socket::sockopt::IpTransparent;
+use nix::sys::socket::{setsockopt};
+use nix::sys::socket::sockopt::{IpTransparent};
 use tokio::select;
 
 #[derive(Parser)]
@@ -18,28 +18,36 @@ struct Cli {
     server: SocketAddr,
 }
 
-async fn proxy(client_addr: SocketAddr, server_addr: SocketAddr) -> io::Result<()> {
+async fn proxy(client_addr: SocketAddr, mut server_addr: SocketAddr) -> io::Result<()> {
     let listener = TcpListener::bind(client_addr).await?;
     println!("Bind successfully on {}", listener.local_addr().unwrap());
 
     // Linux only- get raw socket for setsockopt()
     let raw_socket = listener.as_raw_fd();
-    let res = setsockopt(raw_socket, IpTransparent, &true);
-    match res {
+    let trans_res = setsockopt(raw_socket, IpTransparent, &true);
+    match trans_res {
         Ok(_) => { println!("Succeeded to setsockopt(IpTransparent).") }
         Err(_) => { println!("Failed to setsockopt(IpTransparent). Please run as root (or CAP_NET_ADMIN privileges) on Linux.") }
     }
 
     loop {
         println!("Waiting for a client to connect {} ...", listener.local_addr().unwrap());
-        let (client, _) = listener.accept().await?;
-        println!("   Client connected from {}", client.local_addr().unwrap());
+        let (client_stream, accept_addr) = listener.accept().await?;
+        println!("   Accepted from {}", accept_addr);
+
+        match trans_res {
+            Ok(_) => {
+                server_addr = client_stream.local_addr().unwrap();
+                println!("   Client connected from {}, trying to reach {} (TPROXY)", client_stream.peer_addr().unwrap(), server_addr);
+            }
+            Err(_) => { println!("   Client connected from {}", client_stream.local_addr().unwrap()); }
+        }
 
         println!("Trying to connect server on {} ...", server_addr);
         let server = TcpStream::connect(server_addr).await?;
         println!("   Server {} connected", server.peer_addr().unwrap());
 
-        let (mut c_read, mut c_write) = client.into_split();
+        let (mut c_read, mut c_write) = client_stream.into_split();
         let (mut s_read, mut s_write) = server.into_split();
 
         let c2s = tokio::spawn(async move {
