@@ -94,4 +94,27 @@ nc -kvl 0.0.0.0 6000 > /dev/null
 
 # Transparent proxy
 
-This operation mode requires Linux with CAP_NET_ADMIN privileges.
+To set a TPROXY rule in Ubuntu, you will need to use the iptables utility. 
+TPROXY is a feature that allows you to redirect traffic to a local proxy without the need for NAT.
+
+Here's an example of how to set a TPROXY rule that redirects all HTTP traffic from a specific source IP address to a local HTTP proxy listening on port 8080:
+
+```bash
+iptables -t mangle -A PREROUTING -i $NICI -p tcp --dport 443 -j TPROXY --tproxy-mark 0x1/0x1 --on-port 6000
+```
+
+This rule will mark all HTTPS traffic from the source IP with the mark 0x1/0x1, and redirect it to the local proxy listening on port 6000.
+
+You can then use the ip rule command to specify that traffic marked with 0x1/0x1 should be redirected to the proxy:
+
+```bash
+ip rule add fwmark 1 lookup 100
+ip route add local 0.0.0.0/0 dev lo table 100
+```
+
+This will redirect all traffic marked with 0x1/0x1 to the local loopback interface, which is where the proxy is listening.
+
+Keep in mind that these rules are not persistent across reboots. 
+To make them persistent, you will need to save them to a script and configure the system to run the script at startup.
+
+In the proxy's code, the setsockopt() operation requires Linux with CAP_NET_ADMIN privileges.
