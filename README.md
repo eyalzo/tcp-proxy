@@ -118,3 +118,22 @@ Keep in mind that these rules are not persistent across reboots.
 To make them persistent, you will need to save them to a script and configure the system to run the script at startup.
 
 In the proxy's code, the setsockopt() operation requires Linux with CAP_NET_ADMIN privileges.
+
+# Examples
+
+## TPROXY
+
+```bash
+$ sudo cargo run -- --client 0.0.0.0:6000 --server 185.125.190.48:80
+```
+```text
+Bind successfully on 0.0.0.0:6000
+Succeeded to setsockopt(IpTransparent).
+Waiting for a client to connect 0.0.0.0:6000 ...
+Copied client -> server: 87 bytes
+   Accepted from 10.0.1.2:47702
+   Client connected from 10.0.1.2:47702, trying to reach 91.189.91.48:80 (TPROXY)
+Trying to connect server on 91.189.91.48:80 ...
+   Server 91.189.91.48:80 connected
+Copied server -> client: 147 bytes
+```
